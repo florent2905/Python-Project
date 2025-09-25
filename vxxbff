@@ -1,0 +1,16 @@
+import requests
+
+api_key = "78dd61655a154d1e93a30a39aa45b960"
+url = f"https://newsapi.org/v2/everything?q=finance&language=en&sortBy=publishedAt&apiKey={api_key}"
+
+response = requests.get(url).json()
+articles = [a["title"] + " " + a["description"] for a in response["articles"]]
+print(articles[:3])
+
+from newspaper import Article
+
+url = "https://www.reuters.com/markets/"
+article = Article(url)
+article.download()
+article.parse()
+print(article.text)
