@@ -85,7 +85,6 @@ sent_df = sent_df.dropna(subset=['Dates'])
 sent_df = sent_df.sort_values('Dates').reset_index(drop=True)
 sent_df = sent_df[['Dates', 'News', 'sentiment_score']]
 
-print(sent_df.info())
 print(sent_df.head())
 
 import yfinance as yf

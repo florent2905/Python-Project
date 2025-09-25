@@ -124,6 +124,8 @@ def add_synthetic_variable(df):
     from sklearn.cluster import KMeans
 
     temp_df = pd.DataFrame(index=df.index)
+
+    # Variables de base
     temp_df["Return"] = df["Price"].pct_change()
     temp_df["Log_Return"] = np.log(df["Price"] / df["Price"].shift(1))
     temp_df["Vol_5d"] = temp_df["Return"].rolling(5).std()
@@ -131,28 +133,32 @@ def add_synthetic_variable(df):
     temp_df["Momentum_5d"] = df["Price"] - df["Price"].shift(5)
     temp_df["Momentum_10d"] = df["Price"] - df["Price"].shift(10)
     temp_df["High_Low"] = df["High"] - df["Low"]
-    
-    # Eviter la division par zéro
-    temp_df["Return_to_Range"] = temp_df["Return"] / temp_df["High_Low"].replace(0, np.nan)
 
-    # Supprimer toutes les lignes contenant NaN ou inf
-    temp_df.replace([np.inf, -np.inf], np.nan, inplace=True)
-    temp_df = temp_df.dropna()
+    # Ratio avec protection contre la division par zéro
+    temp_df["Return_to_Range"] = np.where(
+        temp_df["High_Low"] == 0,
+        0,
+        temp_df["Return"] / temp_df["High_Low"]
+    )
 
-    # Standardiser
+    # Remplacer les NaN initiaux par 0 (sauf les 10 premières lignes qu’on coupe)
+    temp_df = temp_df.fillna(0)
+    temp_df = temp_df.iloc[10:]  # on sait qu’il faut au moins 10 périodes pour calculer Momentum_10d et Vol_10d
+
+    # Standardisation
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(temp_df)
 
-    # PCA
-    pca = PCA(n_components=1) # On veux une seule composante principale
+    # PCA (1 composante principale)
+    pca = PCA(n_components=1)
     pca_values = pca.fit_transform(X_scaled)
 
-    # K-means
-    kmeans = KMeans(n_clusters=3, random_state=42) # 3 clusters car on veut une variable catégorielle avec 3 états (hausse, baisse, neutre)
+    # KMeans (3 clusters : hausse / baisse / neutre)
+    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
     cluster_values = kmeans.fit_predict(X_scaled)
 
-    # Ajouter uniquement les variables finales
-    df.loc[temp_df.index, "Synth_PCA"] = pca_values
+    # Ajout au DataFrame original
+    df.loc[temp_df.index, "Synth_PCA"] = pca_values.ravel()
     df.loc[temp_df.index, "Synth_Cluster"] = cluster_values
 
     return df
